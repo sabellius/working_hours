@@ -10,7 +10,7 @@ async function loginToBiodataTimeWatch(page) {
   await page.waitForNavigation();
 }
 
-async function loginToExperisTimeWatch(page, credentials) {
+async function loginToExperisTimeWatch(page) {
   await page.type('#login', process.env.EX_LOGIN);
   await page.type('#password', process.env.EX_PASSWORD);
   await page.click('#login_commit');
