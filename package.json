@@ -5,6 +5,7 @@
   "main": "working-hours.js",
   "dependencies": {
     "dotenv": "^8.2.0",
+    "pdf-merger-js": "^3.1.0",
     "puppeteer": "^5.4.1",
     "puppeteer-core": "^5.4.1"
   },
