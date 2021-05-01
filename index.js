@@ -1,62 +1,87 @@
-const puppeteer = require('puppeteer');
-require('dotenv').config();
+require("dotenv").config();
+const fs = require("fs");
+const path = require('path');
+const puppeteer = require("puppeteer");
+const PDFMerger = require("pdf-merger-js");
+const merger = new PDFMerger();
 
 async function loginToBiodataTimeWatch(page) {
-  const loginButtonSelector = '.roundedcornr_content_840695 > p:nth-child(1) > table:nth-child(1) > tbody:nth-child(1) > tr:nth-child(4) > td:nth-child(2) > input:nth-child(1)'
-  await page.type('#compKeyboard', process.env.BD_COMPANY_NUMBER);
-  await page.type('#nameKeyboard', process.env.BD_EMPLOYEE_NUMBER);
-  await page.type('#pwKeyboard', process.env.BD_PASSWORD)
+  const loginButtonSelector =
+    ".roundedcornr_content_840695 > p:nth-child(1) > table:nth-child(1) > tbody:nth-child(1) > tr:nth-child(4) > td:nth-child(2) > input:nth-child(1)";
+  await page.type("#compKeyboard", process.env.BD_COMPANY_NUMBER);
+  await page.type("#nameKeyboard", process.env.BD_EMPLOYEE_NUMBER);
+  await page.type("#pwKeyboard", process.env.BD_PASSWORD);
   await page.click(loginButtonSelector);
   await page.waitForNavigation();
 }
 
 async function loginToExperisTimeWatch(page) {
-  await page.type('#login', process.env.EX_LOGIN);
-  await page.type('#password', process.env.EX_PASSWORD);
-  await page.click('#login_commit');
+  await page.type("#login", process.env.EX_LOGIN);
+  await page.type("#password", process.env.EX_PASSWORD);
+  await page.click("#login_commit");
   await page.waitForNavigation();
 }
 
-function parseArguments(){
-  const [month, year] = process.argv.slice(2).map(value => parseInt(value));
+function parseArguments() {
+  const [month, year] = process.argv.slice(2).map((value) => parseInt(value));
   const first = { month: month - 1, year };
   const second = { month, year };
   if (month === 1) {
-    first["month"] = 12
+    first["month"] = 12;
     first["year"] = year - 1;
-  } 
-  return { first, second }
+  }
+  return { first, second };
 }
 
-function createMonthAndYearParams({ month, year }){
-  const m = (month / 10 < 1) ? '0' + month : month;
+function createMonthAndYearParams({ month, year }) {
+  const m = month / 10 < 1 ? "0" + month : month;
   return `&m=${m}&y=${year}`;
 }
 
-async function getRawRowsData(page){
+async function getRawRowsData(page) {
   const rowsData = await page.evaluate(() => {
-    const rowsCssSelector = 'body > div:nth-child(2) > span:nth-child(1) > p:nth-child(2) > table:nth-child(2) > tbody:nth-child(1) tr';
+    const rowsCssSelector =
+      "body > div:nth-child(2) > span:nth-child(1) > p:nth-child(2) > table:nth-child(2) > tbody:nth-child(1) tr";
     const rows = Array.from(document.querySelectorAll(rowsCssSelector));
-    return rows.map((tr) => tr.childElementCount === 14 ? tr.innerText : null).filter((row) => row !== null);
+    return rows.map((tr) => (tr.childElementCount === 14 ? tr.innerText : null)).filter((row) => row !== null);
   });
   return rowsData;
 }
 
-function parseRows(rawData){
-  const rows = rawData.map(row => {
-    const rowArray = row.split('\t');
+function parseRows(rawData) {
+  const rows = rawData.map((row) => {
+    const rowArray = row.split("\t");
     const date = rowArray[0].match(/^\d{1,2}\-\d{1,2}\-\d{4}/)[0];
     const start = rowArray[4].trim();
     const end = rowArray[5].trim();
-    return { date, start, end }
+    return { date, start, end };
   });
   return rows;
 }
 
-function filterIrrelevantDays(days, currentMonth){
-  const month = (currentMonth / 10 < 1) ? '0' + currentMonth : currentMonth; 
+function filterIrrelevantDays(days, currentMonth) {
+  const month = currentMonth / 10 < 1 ? "0" + currentMonth : currentMonth;
   const result = days.filter((day) => day.date.includes(`-${month}-`) && day.start && day.end);
   return result;
+}
+
+async function mergePdfs(paths, month, year) {
+  try {
+    paths.forEach((path) => merger.add(path));
+    const mergedPath = `./tmp/working-hours_${month}-${year}.pdf`;
+    await merger.save(mergedPath);
+    paths.push(mergedPath);
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+async function cleanup(paths) {
+  paths.forEach((path) => {
+    if (fs.existsSync(path)) {
+      fs.unlinkSync(path, (path) => console.log("removed " + path));
+    }
+  })
 }
 
 (async () => {
@@ -67,82 +92,106 @@ function filterIrrelevantDays(days, currentMonth){
 
   // start puppeteer
   const browser = await puppeteer.launch({
-    headless: false,
+    headless: true,
     defaultViewport: {
-        width: 1366,
-        height: 790
-      }
-    });
+      width: 1366,
+      height: 790,
+    },
+  });
   const page = await browser.newPage();
 
   // browse to sign in page of biodata timewatch
-  await page.goto('https://checkin.timewatch.co.il/punch/punch.php?e=1');
+  await page.goto("https://checkin.timewatch.co.il/punch/punch.php?e=1");
 
   // login to biodata time-watch
   await loginToBiodataTimeWatch(page);
 
   // get the url to the hours table from the link in the home page
-  const linkCssSelector = 'body > div:nth-child(2) > span:nth-child(1) > table:nth-child(3) > tbody:nth-child(1) > tr:nth-child(1) > td:nth-child(2) > form:nth-child(1) > div:nth-child(1) > div:nth-child(1) > table:nth-child(1) > tbody:nth-child(1) > tr:nth-child(1) > td:nth-child(2) > font:nth-child(1) > b:nth-child(1) > a:nth-child(1)'
+  const linkCssSelector =
+    "body > div:nth-child(2) > span:nth-child(1) > table:nth-child(3) > tbody:nth-child(1) > tr:nth-child(1) > td:nth-child(2) > form:nth-child(1) > div:nth-child(1) > div:nth-child(1) > table:nth-child(1) > tbody:nth-child(1) > tr:nth-child(1) > td:nth-child(2) > font:nth-child(1) > b:nth-child(1) > a:nth-child(1)";
   const link = await page.$(linkCssSelector);
-  const href = await page.evaluate(anchor => anchor.getAttribute('href'), link);
+  const href = await page.evaluate((anchor) => anchor.getAttribute("href"), link);
 
   // construct the full url
-  const baseUrl = 'https://checkin.timewatch.co.il/punch/';
-  const params = href.substring(25, (href.length-3));
-  
-  let combinedDays = []
+  const baseUrl = "https://checkin.timewatch.co.il/punch/";
+  const params = href.substring(25, href.length - 3);
+
+  const pdfPaths = [];
+  let combinedDays = [];
   for (const half of Object.values(halves)) {
     const monthAndYearParams = createMonthAndYearParams(half);
     await page.goto(baseUrl + params + monthAndYearParams);
+    const pdfPath = `./tmp/${monthAndYearParams}.pdf`;
+    await page.pdf({
+      path: pdfPath,
+      format: "A4"
+    });
+    pdfPaths.push(pdfPath);
     const rowsData = await getRawRowsData(page);
     const days = parseRows(rowsData);
-    combinedDays.push(...days)
+    combinedDays.push(...days);
   }
-  
+  // merge the pdf files of the both halves of the month
+  await mergePdfs(pdfPaths, currentMonth, currentYear);
+
   // this are all the working days of the given month
   const filteredDays = filterIrrelevantDays(combinedDays, currentMonth);
 
   // go to experis login page
-  const experisLoginPage = 'https://bo.experis.co.il/login';
+  const experisLoginPage = "https://bo.experis.co.il/login";
   await page.goto(experisLoginPage);
 
   // fill login form and submit
-  await loginToExperisTimeWatch(page, experisCredentials);
+  await loginToExperisTimeWatch(page);
 
   // map the raw data to rows of date and id
   const experisRowsData = await page.evaluate(() => {
-    const rows = Array.from(document.querySelectorAll('table.tbl_chart:nth-child(1) > tbody:nth-child(2) tr'))
-    return rows.map((tr) => {
-      return {
-        dateText: tr.children[0].innerText.match(/^\d{1,2}\-\d{1,2}/),
-        rowId: tr.getAttribute('id')
-      }
-    }).filter(row => row.rowId !== null)
+    const rows = Array.from(document.querySelectorAll("table.tbl_chart:nth-child(1) > tbody:nth-child(2) tr"));
+    return rows
+      .map((tr) => {
+        return {
+          dateText: tr.children[0].innerText.match(/^\d{1,2}\-\d{1,2}/),
+          rowId: tr.getAttribute("id"),
+        };
+      })
+      .filter((row) => row.rowId !== null);
   });
 
   for (day of filteredDays) {
     // try to find a matching row in the experisRows
-    correspondingRow = experisRowsData.find(row => {
+    const correspondingRow = experisRowsData.find((row) => {
       // HACK: add a '0' to dates like 1/11 so it wont be matched with 11/11
       // TODO: move this hack to where the experis rows are parsed
       let experisDateArray = row.dateText[0].toString().split("-");
       let [d, m] = experisDateArray;
-      d = (d.length === 1) ? "0" + d : d;
-      m = (m.length === 1) ? "0" + m : m;
+      d = d.length === 1 ? "0" + d : d;
+      m = m.length === 1 ? "0" + m : m;
       const experisDate = d + "-" + m;
       return day.date.includes(experisDate);
     });
     if (correspondingRow) {
       // if the row was matched with a row in experisRows, type in the hours
       const rowId = correspondingRow.rowId.slice(11);
-      const startId = 'time_report_' + rowId + '_start_time';
-      const endId = 'time_report_' + rowId + '_end_time';
+      const startId = "time_report_" + rowId + "_start_time";
+      const endId = "time_report_" + rowId + "_end_time";
       await page.type(`#${startId}`, day.start);
       await page.type(`#${endId}`, day.end);
     }
   }
 
-  await page.click('#button_save');
+  await page.click("#button_save");
+
+  
+  const uploadFileInput = await page.$("input[type=file]");
+  const mergedPdfPath = path.dirname(require.main.filename) + "/" + pdfPaths[pdfPaths.length - 1].slice(1)
+  console.log('mergedPdfPath: ', mergedPdfPath);
+  await uploadFileInput.uploadFile(mergedPdfPath);
+  await page.click("#upload");
+  await page.click("#button_complete");
+  await page.waitFor(5000);
+
+  // remove pdf files after submitting
+  await cleanup(pdfPaths);
 
   await browser.close();
 })();
