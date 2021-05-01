@@ -70,7 +70,7 @@ function filterIrrelevantDays(days, currentMonth){
     headless: false,
     defaultViewport: {
         width: 1366,
-        height: 768
+        height: 790
       }
     });
   const page = await browser.newPage();
