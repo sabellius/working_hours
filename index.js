@@ -3,12 +3,11 @@ const path = require('path');
 const uuid = require("uuid")
 const puppeteer = require("puppeteer");
 
-const { parseArguments } = require("./lib/argument-parser");
 const { mergePdfs, backupFile, cleanup } = require("./lib/pdf-helper");
+const ArgumentParser = require("./lib/argument-parser");
 
 async function loginToBiodataTimeWatch(page) {
-  const loginButtonSelector =
-    ".roundedcornr_content_840695 > p:nth-child(1) > table:nth-child(1) > tbody:nth-child(1) > tr:nth-child(4) > td:nth-child(2) > input:nth-child(1)";
+  const loginButtonSelector = ".roundedcornr_content_840695 > p:nth-child(1) > table:nth-child(1) > tbody:nth-child(1) > tr:nth-child(4) > td:nth-child(2) > input:nth-child(1)";
   await page.type("#compKeyboard", process.env.BD_COMPANY_NUMBER);
   await page.type("#nameKeyboard", process.env.BD_EMPLOYEE_NUMBER);
   await page.type("#pwKeyboard", process.env.BD_PASSWORD);
@@ -56,14 +55,20 @@ function filterIrrelevantDays(days, currentMonth) {
 }
 
 (async () => {
+  const flags = ArgumentParser.parseFlags();
+  if (flags.showHelp) {
+    return ArgumentParser.showHelp();
+  }
+
   // get months and year from input and parse them
-  const { halves, flags } = parseArguments();
+  const halves = ArgumentParser.parseMonths();
+  // const { halves, flags } = parseArguments();
   const currentMonth = halves.second.month;
   const currentYear = halves.second.year;
 
   // start puppeteer
   const browser = await puppeteer.launch({
-    headless: true,
+    headless: false,
     defaultViewport: {
       width: 1366,
       height: 790,
@@ -93,37 +98,40 @@ function filterIrrelevantDays(days, currentMonth) {
         await page.click(linkCssSelector)
       ]);
       await page.goto(popup.url());
-      if (flags.generatePdf) {
-        const pdfPath = `./tmp/${uuid.v4()}.pdf`;
-        await page.pdf({
-          path: pdfPath,
-          format: "A4"
-        });
-        pdfPaths.push(pdfPath);
-      }
-      const rowsData = await getRawRowsData(popup);
-      const days = parseRows(rowsData);
-      combinedDays.push(...days);
+      // if (flags.generatePdf) {
+        //   const pdfPath = `./tmp/${uuid.v4()}.pdf`;
+        //   await page.pdf({
+          //     path: pdfPath,
+          //     format: "A4"
+          //   });
+          //   pdfPaths.push(pdfPath);
+          // }
+          const rowsData = await getRawRowsData(popup);
+          const days = await parseRows(rowsData);
+          combinedDays.push(...days);
+          popup.close();
+          console.log('combinedDays: ', combinedDays);
       await page.goBack();
     }
   }
   
-  // merge the pdf files of the both halves of the month
-  if (flags.generatePdf) {
-    let fname = currentYear + "-";
-    fname += currentMonth.toString().length === 1 ? `0${currentMonth}` : currentMonth;
-    await mergePdfs(pdfPaths, fname);
-    // copy merged pdf to a backup folder
-    if (flags.backupPdf) {
-      const target_path = process.env.BACKUP_PATH + fname + ".pdf";
-      await backupFile(pdfPaths[pdfPaths.length-1], target_path);
-    }
-  } 
+  console.log('combinedDays: ', combinedDays);
+  // // merge the pdf files of the both halves of the month
+  // if (flags.generatePdf) {
+  //   let fname = currentYear + "-";
+  //   fname += currentMonth.toString().length === 1 ? `0${currentMonth}` : currentMonth;
+  //   await mergePdfs(pdfPaths, fname);
+  //   // copy merged pdf to a backup folder
+  //   if (flags.backupPdf) {
+  //     const target_path = process.env.BACKUP_PATH + fname + ".pdf";
+  //     await backupFile(pdfPaths[pdfPaths.length-1], target_path);
+  //   }
+  // } 
 
-  // remove pdf files after submitting
-  if (flags.generatePdf && flags.cleanFiles) {
-    await cleanup(pdfPaths)
-  }
+  // // remove pdf files after submitting
+  // if (flags.generatePdf && flags.cleanFiles) {
+  //   await cleanup(pdfPaths)
+  // }
 
   // this are all the working days of the given month
   const filteredDays = filterIrrelevantDays(combinedDays, currentMonth);
@@ -173,12 +181,14 @@ function filterIrrelevantDays(days, currentMonth) {
   await page.click("#button_save");
 
   if (flags.submitHours) {
-    const uploadFileInput = await page.$("input[type=file]");
-    const mergedPdfPath = path.dirname(require.main.filename) + "/" + pdfPaths[pdfPaths.length - 1].slice(1)
-    await uploadFileInput.uploadFile(mergedPdfPath);
-    await page.click("#upload");
-    await page.click("#button_complete");
-    await page.waitFor(5000);
+    if (flags.generatePdf) {
+      const uploadFileInput = await page.$("input[type=file]");
+      const mergedPdfPath = path.dirname(require.main.filename) + "/" + pdfPaths[pdfPaths.length - 1].slice(1)
+      await uploadFileInput.uploadFile(mergedPdfPath);
+      await page.click("#upload");
+      await page.click("#button_complete");
+      await page.waitFor(5000);
+    }
   }
 
   await browser.close();
