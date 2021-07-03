@@ -4,7 +4,7 @@ const uuid = require("uuid")
 const puppeteer = require("puppeteer");
 
 const { mergePdfs, backupFile, cleanup } = require("./lib/pdf-helper");
-const ArgumentParser = require("./lib/argument-parser");
+const ArgumentParser = require("./lib/argument-helper");
 
 async function loginToBiodataTimeWatch(page) {
   const loginButtonSelector = ".roundedcornr_content_840695 > p:nth-child(1) > table:nth-child(1) > tbody:nth-child(1) > tr:nth-child(4) > td:nth-child(2) > input:nth-child(1)";
