@@ -1,6 +1,7 @@
 require("dotenv").config();
 const path = require('path');
 const puppeteer = require("puppeteer");
+const uuid = require("uuid");
 
 const ArgumentParser = require("./lib/argument-helper");
 const PdfHelper = require("./lib/pdf-helper");
@@ -20,10 +21,11 @@ function createMonthAndYearParams({ month, year }) {
   // get months and year from input and parse them
   const halves = ArgumentParser.parseMonths();
   const currentMonth = halves.second.month;
+  const currentYear = halves.second.year;
 
   // start puppeteer
   const browser = await puppeteer.launch({
-    headless: false,
+    headless: true,
     defaultViewport: {
       width: 1366,
       height: 790,
@@ -50,14 +52,14 @@ function createMonthAndYearParams({ month, year }) {
         await page.click(linkCssSelector)
       ]);
       await page.goto(popup.url());
-      // if (flags.generatePdf) {
-        //   const pdfPath = `./tmp/${uuid.v4()}.pdf`;
-        //   await page.pdf({
-          //     path: pdfPath,
-          //     format: "A4"
-          //   });
-          //   pdfPaths.push(pdfPath);
-          // }
+      if (flags.generatePdf) {
+          const pdfPath = `./tmp/${uuid.v4()}.pdf`;
+          await page.pdf({
+              path: pdfPath,
+              format: "A4"
+            });
+            pdfPaths.push(pdfPath);
+          }
           const days = await Scraper.getRowsFromBiodata(popup);
           combinedDays.push(...days);
           popup.close();
@@ -66,21 +68,21 @@ function createMonthAndYearParams({ month, year }) {
   }
   
   // // merge the pdf files of the both halves of the month
-  // if (flags.generatePdf) {
-  //   let fname = currentYear + "-";
-  //   fname += currentMonth.toString().length === 1 ? `0${currentMonth}` : currentMonth;
-  //   await mergePdfs(pdfPaths, fname);
-  //   // copy merged pdf to a backup folder
-  //   if (flags.backupPdf) {
-  //     const target_path = process.env.BACKUP_PATH + fname + ".pdf";
-  //     await backupFile(pdfPaths[pdfPaths.length-1], target_path);
-  //   }
-  // } 
+  if (flags.generatePdf) {
+    let fname = currentYear + "-";
+    fname += currentMonth.toString().length === 1 ? `0${currentMonth}` : currentMonth;
+    await PdfHelper.mergePdf(pdfPaths, fname);
+    // copy merged pdf to a backup folder
+    if (flags.backupPdf) {
+      const target_path = process.env.BACKUP_PATH + fname + ".pdf";
+      await PdfHelper.backupFile(pdfPaths[pdfPaths.length-1], target_path);
+    }
+  } 
 
-  // // remove pdf files after submitting
-  // if (flags.generatePdf && flags.cleanFiles) {
-  //   await cleanup(pdfPaths)
-  // }
+  // remove pdf files after submitting
+  if (flags.generatePdf && flags.cleanFiles) {
+    await cleanup(pdfPaths)
+  }
 
   // this are all the working days of the given month
   const filteredDays = Scraper.filterCombinedDays(combinedDays, currentMonth);
