@@ -106,6 +106,5 @@ function createMonthAndYearParams({ month, year }) {
     }
   }
 
-  
   await browser.close();
 })();
