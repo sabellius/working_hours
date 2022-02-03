@@ -93,6 +93,7 @@ function createMonthAndYearParams({ month, year }) {
 
   await Scraper.fillHours(page, filteredDays)
 
+  await page.waitForSelector("#button_save");
   await page.click("#button_save");
 
   if (flags.submitHours) {
@@ -106,5 +107,6 @@ function createMonthAndYearParams({ month, year }) {
     }
   }
 
+  console.log("done");
   await browser.close();
 })();
