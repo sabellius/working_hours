@@ -17,7 +17,7 @@
   "author": "",
   "license": "ISC",
   "bin": {
-    "execute": "index.js"
+    "uptw": "./build/index.js"
   },
   "devDependencies": {
     "@types/node": "^17.0.23",
