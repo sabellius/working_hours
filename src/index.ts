@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-require("dotenv").config();
+import dotenv from "dotenv";
+dotenv.config();
 import path from 'path';
 import puppeteer, { PaperFormat, PDFOptions, PuppeteerNode } from "puppeteer";
 import uuid from "uuid";
