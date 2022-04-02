@@ -1,6 +1,7 @@
 const fs = require("fs");
 const uuid = require("uuid")
 const PDFMerger = require("pdf-merger-js");
+const { PdfError } = require("./custom-errors");
 const merger = new PDFMerger();
 
 class PdfHelper {
@@ -15,7 +16,7 @@ class PdfHelper {
       await merger.save(mergedPath);
       paths.push(mergedPath);
     } catch (error) {
-      console.log(error);
+      throw new PdfError(`failed to combine the pdf from both month halves - ${error}`)
     }
   }
 
@@ -23,16 +24,20 @@ class PdfHelper {
     try {
       fs.copyFile(sourcePath, (targetPath || this.backupPath));
     } catch (error) {
-      console.log("error: ", error);
+      throw new PdfError(`failed to backup the generated pdf - ${error}`)
     }
   }
 
   async cleanup(paths) {
-    paths.forEach((path) => {
-      if (fs.existsSync(path)) {
-        fs.unlinkSync(path, (path) => console.log("removed " + path));
-      }
-    });
+    try {
+      paths.forEach((path) => {
+        if (fs.existsSync(path)) {
+          fs.unlinkSync(path, (path) => console.log("removed " + path));
+        }
+      });
+    } catch (error) {
+      throw new PdfError(`failed to cleanup the generated pdf files - ${error}`)
+    }
   }
 
 }

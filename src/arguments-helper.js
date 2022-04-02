@@ -54,8 +54,6 @@ const arguments = yargs(hideBin(process.argv))
 .options(options)
 .argv
 
-console.log('arguments: ', arguments);
-console.log('arguments: ', typeof arguments);
 // class ArgumentsHelper {
 //   constructor() {
 //     this.args = process.argv.slice(2);
