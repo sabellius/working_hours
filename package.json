@@ -4,11 +4,11 @@
   "description": "",
   "main": "working-hours.js",
   "dependencies": {
-    "dotenv": "^8.2.0",
-    "pdf-merger-js": "^3.1.0",
-    "puppeteer": "^5.4.1",
-    "puppeteer-core": "^5.4.1",
-    "yargs": "^17.3.1"
+    "dotenv": "^16.0.0",
+    "pdf-merger-js": "^3.4.0",
+    "puppeteer": "^13.5.2",
+    "puppeteer-core": "^13.5.2",
+    "yargs": "^17.4.0"
   },
   "scripts": {
     "test": "echo \"no test specified\" && exit 1"
@@ -18,5 +18,10 @@
   "license": "ISC",
   "bin": {
     "execute": "index.js"
+  },
+  "devDependencies": {
+    "@types/node": "^17.0.23",
+    "@types/puppeteer": "^5.4.5",
+    "@types/uuid": "^8.3.4"
   }
 }
