@@ -6,7 +6,6 @@ import puppeteer, { PaperFormat, PDFOptions, PuppeteerNode } from "puppeteer";
 import uuid from "uuid";
 
 import { args, halves } from "./arguments-helper";
-console.log('args: ', args);
 import PdfHelper from "./pdf-helper";
 import Scraper from "./scraper";
 
